@@ -21,3 +21,7 @@ You can use the kilo text editor to make a new file or to edit existing files.
 ``` ./kilo ```
 ### Edit File Mode
 ``` ./kilo filename.ext ```
+
+## Useful links
+[VT100](https://vt100.net/docs/vt100-ug/chapter3.html) User Guide
+[ANSI Escape Codes](https://en.wikipedia.org/wiki/ANSI_escape_code#)
