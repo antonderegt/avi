@@ -72,15 +72,15 @@ typedef struct erow {
 } erow;
 
 struct editorConfig {
-  int cx, cy;
+  int cx, cy;      // Cursor position
   int rx;
-  int rowoff;
-  int coloff;
-  int screenrows;
-  int screencols;
-  int numrows;
+  int rowoff;      // Row offset 
+  int coloff;      // Column offset
+  int screenrows;  // Height of screen
+  int screencols;  // Width of screen
+  int numrows;     // Number of rows in file
   erow *row;
-  int dirty;
+  int dirty;       // Indicates if file has been modified
   char *filename;
   char statusmsg[80];
   time_t statusmsg_time;
@@ -115,29 +115,29 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int));
 
 /*** terminal ***/
 void die(const char *s) {
-  write(STDOUT_FILENO, "\x1b[2J", 4);
-  write(STDOUT_FILENO, "\x1b[H", 3);
+  write(STDOUT_FILENO, "\x1b[2J", 4); // Erase screen
+  write(STDOUT_FILENO, "\x1b[H", 3);  // Put cursor at default position of 1,1
 
   perror(s);
   exit(1);
 }
 
 void disableRawMode() {
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1)
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1) // Discard unhandled input and reset terminal settings to the original
     die("tcsetattr");
 }
 
 void enableRawMode() {
   if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1) die("tcgetattr");
-  atexit(disableRawMode);
+  atexit(disableRawMode); // When program exits, raw mode gets disabled
   struct termios raw = E.orig_termios;
 
-  raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-  raw.c_oflag &= ~(OPOST);
-  raw.c_cflag |= (CS8);
-  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-  raw.c_cc[VMIN] = 0;
-  raw.c_cc[VTIME] = 1;
+  raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON); // Disable input flags. BRKINT: Exit program, ICRNL: New Line, INPCK: Parity checking, ISTRIP: Strip 8th bit, IXON: Resume transmission
+  raw.c_oflag &= ~(OPOST);                                  // Disable output flag. OPOST: Post processing output
+  raw.c_cflag |= (CS8);                                     // Set control flag CS8: Use 8 bits per byte
+  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);          // Disable local flags. ECHO: echo, ICANON: Turn off canonical mode (read input byte-by-byte), IEXTEN: Fix Ctrl-O, ISIG: Disable Ctrl-C and Ctrl-Z
+  raw.c_cc[VMIN] = 0;                                       // Minimum bytes of input needed before read() can return
+  raw.c_cc[VTIME] = 1;                                      // Maximum time to wait before read() returns
 
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
@@ -944,7 +944,11 @@ void editorProcessKeypress() {
     case CTRL_KEY('f'):
       editorFind();
       break;
-
+    case CTRL_KEY('u'):
+    case CTRL_KEY('d'): {
+        int times = E.screenrows / 2;
+        while (times--) editorMoveCursor(c == CTRL_KEY('u') ? ARROW_UP : ARROW_DOWN);
+    } break;
     case BACKSPACE:
     case CTRL_KEY('h'):
     case DEL_KEY:
