@@ -97,9 +97,13 @@ char *C_HL_keywords[] = {"switch",    "if",      "while",   "for",    "break",
                          "int|",      "long|",   "double|", "float|", "char|",
                          "unsigned|", "signed|", "void|",   NULL};
 
+char *MAKE_HL_extensions[] = {"Makefile", NULL};
+char *MAKE_HL_keywords[] = {"all:", "clean", "$", "@", "<", "rm", "-rf|", "-f|", "touch", "echo", "mkdir", "cd", NULL};
+
 struct editorSyntax HLDB[] = {
     {"c", C_HL_extensions, C_HL_keywords, "//", "/*", "*/",
      HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS},
+    {"MK", MAKE_HL_extensions, MAKE_HL_keywords, "#", "", "", HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS},
 };
 
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
