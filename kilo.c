@@ -17,9 +17,10 @@
 #include <unistd.h>
 
 /*** defines ***/
-#define KILO_VERSION "0.0.1"
-#define KILO_TAB_STOP 8
-#define KILO_QUIT_TIMES 3
+#define AVI_VERSION "0.0.1"
+#define AVI_TAB_STOP 8
+#define AVI_QUIT_TIMES 3
+#define COL_OFFSET 3
 
 #define CTRL_KEY(k) ((k)&0x1f)
 
@@ -36,11 +37,7 @@ enum editorKey {
   PAGE_DOWN
 };
 
-enum editorMode {
-  NORMAL = 0,
-  INSERT,
-  VISUAL
-};
+enum editorMode { NORMAL = 0, INSERT, VISUAL, COMMAND };
 
 enum editorHighlight {
   HL_NORMAL = 0,
@@ -105,9 +102,9 @@ char *C_HL_keywords[] = {
     "void|",  NULL};
 
 char *MAKE_HL_extensions[] = {"Makefile", NULL};
-char *MAKE_HL_keywords[] = {"all:",  "clean", "$",   "@",     "<",
-                            "rm",    "-rf|",  "-f|", "touch", "echo",
-                            "mkdir", "cd",    NULL};
+char *MAKE_HL_keywords[] = {"all:",  "clean:", "$",   "@",     "<",
+                            "rm",    "-rf|",   "-f|", "touch", "echo",
+                            "mkdir", "cd",     NULL};
 
 struct editorSyntax HLDB[] = {
     {"c", C_HL_extensions, C_HL_keywords, "//", "/*", "*/",
@@ -418,7 +415,7 @@ int editorRowCxToRx(erow *row, int cx) {
   int rx = 0;
   int j;
   for (j = 0; j < cx; j++) {
-    if (row->chars[j] == '\t') rx += (KILO_TAB_STOP - 1) - (rx % KILO_TAB_STOP);
+    if (row->chars[j] == '\t') rx += (AVI_TAB_STOP - 1) - (rx % AVI_TAB_STOP);
     rx++;
   }
   return rx;
@@ -429,7 +426,7 @@ int editorRowRxToCx(erow *row, int rx) {
   int cx;
   for (cx = 0; cx < row->size; cx++) {
     if (row->chars[cx] == '\t')
-      cur_rx += (KILO_TAB_STOP - 1) - (cur_rx % KILO_TAB_STOP);
+      cur_rx += (AVI_TAB_STOP - 1) - (cur_rx % AVI_TAB_STOP);
     cur_rx++;
     if (cur_rx > rx) return cx;
   }
@@ -442,12 +439,12 @@ void editorUpdateRow(erow *row) {
   for (j = 0; j < row->size; j++)
     if (row->chars[j] == '\t') tabs++;
   free(row->render);
-  row->render = malloc(row->size + tabs * (KILO_TAB_STOP - 1) + 1);
+  row->render = malloc(row->size + tabs * (AVI_TAB_STOP - 1) + 1);
   int idx = 0;
   for (j = 0; j < row->size; j++) {
     if (row->chars[j] == '\t') {
       row->render[idx++] = ' ';
-      while (idx % KILO_TAB_STOP != 0) row->render[idx++] = ' ';
+      while (idx % AVI_TAB_STOP != 0) row->render[idx++] = ' ';
     } else {
       row->render[idx++] = row->chars[j];
     }
@@ -530,7 +527,7 @@ void editorInsertChar(int c) {
 }
 
 void editorInsertNewline() {
-  if (E.cx == 0) {
+  if (E.cx == COL_OFFSET) {
     editorInsertRow(E.cy, "", 0);
   } else {
     erow *row = &E.row[E.cy];
@@ -541,18 +538,18 @@ void editorInsertNewline() {
     editorUpdateRow(row);
   }
   E.cy++;
-  E.cx = 0;
+  E.cx = COL_OFFSET;
 }
 
 void editorDelChar() {
   if (E.cy == E.numrows) return;
-  if (E.cx == 0 && E.cy == 0) return;
+  if (E.cx == COL_OFFSET && E.cy == 0) return;
   erow *row = &E.row[E.cy];
-  if (E.cx > 0) {
-    editorRowDelChar(row, E.cx - 1);
+  if (E.cx > COL_OFFSET) {
+    editorRowDelChar(row, E.cx - 1 - COL_OFFSET);
     E.cx--;
   } else {
-    E.cx = E.row[E.cy - 1].size;
+    E.cx = E.row[E.cy - 1].size + COL_OFFSET;
     editorRowAppendString(&E.row[E.cy - 1], row->chars, row->size);
     editorDelRow(E.cy);
     E.cy--;
@@ -735,6 +732,21 @@ void editorScroll() {
   }
 }
 
+void editorDrawLineNumbers(char *row, int filerow) {
+  int rowNumber;
+  if (filerow < E.cy) {
+    rowNumber = E.cy - filerow;
+  } else if (filerow > E.cy) {
+    rowNumber = filerow - E.cy;
+  } else {
+    rowNumber = 0;
+  }
+  row[0] = '0' + rowNumber / 10;
+  if (row[0] == '0') row[0] = ' ';
+  row[1] = '0' + rowNumber % 10;
+  row[2] = ' ';
+}
+
 void editorDrawRows(struct abuf *ab) {
   int y;
   for (y = 0; y < E.screenrows; y++) {
@@ -743,7 +755,7 @@ void editorDrawRows(struct abuf *ab) {
       if (E.numrows == 0 && y == E.screenrows / 3) {
         char welcome[80];
         int welcomelen = snprintf(welcome, sizeof(welcome),
-                                  "Kilo editor -- version %s", KILO_VERSION);
+                                  "Avi editor -- version %s", AVI_VERSION);
         if (welcomelen > E.screencols) welcomelen = E.screencols;
         int padding = (E.screencols - welcomelen) / 2;
         if (padding) {
@@ -763,6 +775,9 @@ void editorDrawRows(struct abuf *ab) {
       unsigned char *hl = &E.row[filerow].hl[E.coloff];
       int current_color = -1;
       int j;
+      char row[2];
+      editorDrawLineNumbers(row, filerow);
+      abAppend(ab, row, 3);
       for (j = 0; j < len; j++) {
         if (iscntrl(c[j])) {
           char sym = (c[j] <= 26) ? '@' + c[j] : '?';
@@ -896,20 +911,20 @@ void editorMoveCursor(int key) {
   switch (key) {
     case 'h':
     case ARROW_LEFT:
-      if (E.cx != 0) {
+      if (E.cx > COL_OFFSET) {
         E.cx--;
       } else if (E.cy > 0) {
         E.cy--;
-        E.cx = E.row[E.cy].size;
+        E.cx = E.row[E.cy].size + COL_OFFSET;
       }
       break;
     case 'l':
     case ARROW_RIGHT:
-      if (row && E.cx < row->size) {
+      if (row && E.cx < row->size + COL_OFFSET) {
         E.cx++;
-      } else if (row && E.cx == row->size) {
+      } else if (row && E.cx == row->size + COL_OFFSET) {
         E.cy++;
-        E.cx = 0;
+        E.cx = COL_OFFSET;
       }
       break;
     case 'k':
@@ -927,19 +942,19 @@ void editorMoveCursor(int key) {
   }
   row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
   int rowlen = row ? row->size : 0;
-  if (E.cx > rowlen) {
-    E.cx = rowlen;
+  if (E.cx > rowlen + COL_OFFSET) {
+    E.cx = rowlen + COL_OFFSET;
   }
 }
 
 void editorProcessKeypress() {
-  static int quit_times = KILO_QUIT_TIMES;
-  static int editor_mode = NORMAL;
+  static int quit_times = AVI_QUIT_TIMES;
+  static int editor_mode = INSERT;
 
   int c = editorReadKey();
-  
-  if(editor_mode == NORMAL) {
-    switch(c) {
+
+  if (editor_mode == NORMAL) {
+    switch (c) {
       case 'i':
         editor_mode = INSERT;
         editorSetStatusMessage("Insert mode");
@@ -950,87 +965,95 @@ void editorProcessKeypress() {
       case 'l':
         editorMoveCursor(c);
         break;
+      case 'G':
+        E.cy = E.numrows - 1;
+        E.cx = 0;
+        break;
+      case 'g':
+        c = editorReadKey();
+        if (c == 'g') {
+          E.cy = E.cx = 0;
+        }
+    }
+  } else if (editor_mode == INSERT) {
+    switch (c) {
+      case '\x1b':
+        editor_mode = NORMAL;
+        editorSetStatusMessage("Normal mode");
+        break;
+      case '\r':
+        editorInsertNewline();
+        break;
+      case CTRL_KEY('q'):
+        if (E.dirty && quit_times > 0) {
+          editorSetStatusMessage(
+              "WARNING!!! File has unsaved changes. "
+              "Press Ctrl-Q %d more times to quit.",
+              quit_times);
+          quit_times--;
+          return;
+        }
+        write(STDOUT_FILENO, "\x1b[2J", 4);
+        write(STDOUT_FILENO, "\x1b[H", 3);
+        exit(0);
+        break;
+      case CTRL_KEY('s'):
+        editorSave();
+        break;
+
+      case HOME_KEY:
+        E.cx = 0;
+        break;
+      case END_KEY:
+        if (E.cy < E.numrows) E.cx = E.row[E.cy].size;
+        break;
+
+      case CTRL_KEY('f'):
+        editorFind();
+        break;
+      case CTRL_KEY('u'):
+      case CTRL_KEY('d'): {
+        int times = E.screenrows / 2;
+        while (times--)
+          editorMoveCursor(c == CTRL_KEY('u') ? ARROW_UP : ARROW_DOWN);
+      } break;
+      case BACKSPACE:
+      case CTRL_KEY('h'):
+      case DEL_KEY:
+        if (c == DEL_KEY) editorMoveCursor(ARROW_RIGHT);
+        editorDelChar();
+        break;
+      case PAGE_UP:
+      case PAGE_DOWN: {
+        if (c == PAGE_UP) {
+          E.cy = E.rowoff;
+        } else if (c == PAGE_DOWN) {
+          E.cy = E.rowoff + E.screenrows - 1;
+          if (E.cy > E.numrows) E.cy = E.numrows;
+        }
+
+        int times = E.screenrows;
+        while (times--) editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+      } break;
+      case ARROW_UP:
+      case ARROW_DOWN:
+      case ARROW_LEFT:
+      case ARROW_RIGHT:
+        editorMoveCursor(c);
+        break;
+      case CTRL_KEY('l'):
+      default:
+        editorInsertChar(c);
+        break;
     }
   }
-  else if(editor_mode == INSERT) {
-  switch (c) {
-    case '\x1b':
-      editor_mode = NORMAL;
-      editorSetStatusMessage("Normal mode");
-      break;
-    case '\r':
-      editorInsertNewline();
-      break;
-    case CTRL_KEY('q'):
-      if (E.dirty && quit_times > 0) {
-        editorSetStatusMessage(
-            "WARNING!!! File has unsaved changes. "
-            "Press Ctrl-Q %d more times to quit.",
-            quit_times);
-        quit_times--;
-        return;
-      }
-      write(STDOUT_FILENO, "\x1b[2J", 4);
-      write(STDOUT_FILENO, "\x1b[H", 3);
-      exit(0);
-      break;
-    case CTRL_KEY('s'):
-      editorSave();
-      break;
 
-    case HOME_KEY:
-      E.cx = 0;
-      break;
-    case END_KEY:
-      if (E.cy < E.numrows) E.cx = E.row[E.cy].size;
-      break;
-
-    case CTRL_KEY('f'):
-      editorFind();
-      break;
-    case CTRL_KEY('u'):
-    case CTRL_KEY('d'): {
-      int times = E.screenrows / 2;
-      while (times--)
-        editorMoveCursor(c == CTRL_KEY('u') ? ARROW_UP : ARROW_DOWN);
-    } break;
-    case BACKSPACE:
-    case CTRL_KEY('h'):
-    case DEL_KEY:
-      if (c == DEL_KEY) editorMoveCursor(ARROW_RIGHT);
-      editorDelChar();
-      break;
-    case PAGE_UP:
-    case PAGE_DOWN: {
-      if (c == PAGE_UP) {
-        E.cy = E.rowoff;
-      } else if (c == PAGE_DOWN) {
-        E.cy = E.rowoff + E.screenrows - 1;
-        if (E.cy > E.numrows) E.cy = E.numrows;
-      }
-
-      int times = E.screenrows;
-      while (times--) editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-    } break;
-    case ARROW_UP:
-    case ARROW_DOWN:
-    case ARROW_LEFT:
-    case ARROW_RIGHT:
-      editorMoveCursor(c);
-      break;
-    case CTRL_KEY('l'):
-    default:
-      editorInsertChar(c);
-      break;
-  }
-  }
-
-  quit_times = KILO_QUIT_TIMES;
+  quit_times = AVI_QUIT_TIMES;
 }
 
 /*** init ***/
 void initEditor() {
-  E.cx = 0;
+  E.cx = COL_OFFSET;
   E.cy = 0;
   E.rx = 0;
   E.rowoff = 0;
@@ -1045,6 +1068,7 @@ void initEditor() {
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
   E.screenrows -= 2;
+  E.screencols -= COL_OFFSET;
 }
 
 int main(int argc, char *argv[]) {
