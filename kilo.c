@@ -36,6 +36,12 @@ enum editorKey {
   PAGE_DOWN
 };
 
+enum editorMode {
+  NORMAL = 0,
+  INSERT,
+  VISUAL
+};
+
 enum editorHighlight {
   HL_NORMAL = 0,
   HL_COMMENT,
@@ -72,15 +78,15 @@ typedef struct erow {
 } erow;
 
 struct editorConfig {
-  int cx, cy;      // Cursor position
+  int cx, cy;  // Cursor position
   int rx;
-  int rowoff;      // Row offset 
+  int rowoff;      // Row offset
   int coloff;      // Column offset
   int screenrows;  // Height of screen
   int screencols;  // Width of screen
   int numrows;     // Number of rows in file
   erow *row;
-  int dirty;       // Indicates if file has been modified
+  int dirty;  // Indicates if file has been modified
   char *filename;
   char statusmsg[80];
   time_t statusmsg_time;
@@ -91,19 +97,23 @@ struct editorConfig E;
 
 /*** filetypes ***/
 char *C_HL_extensions[] = {".c", ".h", ".cpp", NULL};
-char *C_HL_keywords[] = {"switch",    "if",      "while",   "for",    "break",
-                         "continue",  "return",  "else",    "struct", "union",
-                         "typedef",   "static",  "enum",    "class",  "case",
-                         "#define", "#include", "int|",      "long|",   "double|", "float|", "char|",
-                         "unsigned|", "signed|", "void|",   NULL};
+char *C_HL_keywords[] = {
+    "switch", "if",      "while",  "for",     "break",     "continue",
+    "return", "else",    "struct", "union",   "typedef",   "static",
+    "enum",   "class",   "case",   "#define", "#include",  "int|",
+    "long|",  "double|", "float|", "char|",   "unsigned|", "signed|",
+    "void|",  NULL};
 
 char *MAKE_HL_extensions[] = {"Makefile", NULL};
-char *MAKE_HL_keywords[] = {"all:", "clean", "$", "@", "<", "rm", "-rf|", "-f|", "touch", "echo", "mkdir", "cd", NULL};
+char *MAKE_HL_keywords[] = {"all:",  "clean", "$",   "@",     "<",
+                            "rm",    "-rf|",  "-f|", "touch", "echo",
+                            "mkdir", "cd",    NULL};
 
 struct editorSyntax HLDB[] = {
     {"c", C_HL_extensions, C_HL_keywords, "//", "/*", "*/",
      HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS},
-    {"MK", MAKE_HL_extensions, MAKE_HL_keywords, "#", "", "", HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS},
+    {"MK", MAKE_HL_extensions, MAKE_HL_keywords, "#", "", "",
+     HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS},
 };
 
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
@@ -115,29 +125,38 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int));
 
 /*** terminal ***/
 void die(const char *s) {
-  write(STDOUT_FILENO, "\x1b[2J", 4); // Erase screen
-  write(STDOUT_FILENO, "\x1b[H", 3);  // Put cursor at default position of 1,1
+  write(STDOUT_FILENO, "\x1b[2J", 4);  // Erase screen
+  write(STDOUT_FILENO, "\x1b[H", 3);   // Put cursor at default position of 1,1
 
   perror(s);
   exit(1);
 }
 
 void disableRawMode() {
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1) // Discard unhandled input and reset terminal settings to the original
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) ==
+      -1)  // Discard unhandled input and reset terminal settings to the
+           // original
     die("tcsetattr");
 }
 
 void enableRawMode() {
   if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1) die("tcgetattr");
-  atexit(disableRawMode); // When program exits, raw mode gets disabled
+  atexit(disableRawMode);  // When program exits, raw mode gets disabled
   struct termios raw = E.orig_termios;
 
-  raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON); // Disable input flags. BRKINT: Exit program, ICRNL: New Line, INPCK: Parity checking, ISTRIP: Strip 8th bit, IXON: Resume transmission
-  raw.c_oflag &= ~(OPOST);                                  // Disable output flag. OPOST: Post processing output
-  raw.c_cflag |= (CS8);                                     // Set control flag CS8: Use 8 bits per byte
-  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);          // Disable local flags. ECHO: echo, ICANON: Turn off canonical mode (read input byte-by-byte), IEXTEN: Fix Ctrl-O, ISIG: Disable Ctrl-C and Ctrl-Z
-  raw.c_cc[VMIN] = 0;                                       // Minimum bytes of input needed before read() can return
-  raw.c_cc[VTIME] = 1;                                      // Maximum time to wait before read() returns
+  raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP |
+                   IXON);  // Disable input flags. BRKINT: Exit program, ICRNL:
+                           // New Line, INPCK: Parity checking, ISTRIP: Strip
+                           // 8th bit, IXON: Resume transmission
+  raw.c_oflag &=
+      ~(OPOST);          // Disable output flag. OPOST: Post processing output
+  raw.c_cflag |= (CS8);  // Set control flag CS8: Use 8 bits per byte
+  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN |
+                   ISIG);  // Disable local flags. ECHO: echo, ICANON: Turn off
+                           // canonical mode (read input byte-by-byte), IEXTEN:
+                           // Fix Ctrl-O, ISIG: Disable Ctrl-C and Ctrl-Z
+  raw.c_cc[VMIN] = 0;  // Minimum bytes of input needed before read() can return
+  raw.c_cc[VTIME] = 1;  // Maximum time to wait before read() returns
 
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
@@ -875,6 +894,7 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
 void editorMoveCursor(int key) {
   erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
   switch (key) {
+    case 'h':
     case ARROW_LEFT:
       if (E.cx != 0) {
         E.cx--;
@@ -883,6 +903,7 @@ void editorMoveCursor(int key) {
         E.cx = E.row[E.cy].size;
       }
       break;
+    case 'l':
     case ARROW_RIGHT:
       if (row && E.cx < row->size) {
         E.cx++;
@@ -891,11 +912,13 @@ void editorMoveCursor(int key) {
         E.cx = 0;
       }
       break;
+    case 'k':
     case ARROW_UP:
       if (E.cy != 0) {
         E.cy--;
       }
       break;
+    case 'j':
     case ARROW_DOWN:
       if (E.cy < E.numrows) {
         E.cy++;
@@ -911,9 +934,30 @@ void editorMoveCursor(int key) {
 
 void editorProcessKeypress() {
   static int quit_times = KILO_QUIT_TIMES;
+  static int editor_mode = NORMAL;
 
   int c = editorReadKey();
+  
+  if(editor_mode == NORMAL) {
+    switch(c) {
+      case 'i':
+        editor_mode = INSERT;
+        editorSetStatusMessage("Insert mode");
+        break;
+      case 'j':
+      case 'k':
+      case 'h':
+      case 'l':
+        editorMoveCursor(c);
+        break;
+    }
+  }
+  else if(editor_mode == INSERT) {
   switch (c) {
+    case '\x1b':
+      editor_mode = NORMAL;
+      editorSetStatusMessage("Normal mode");
+      break;
     case '\r':
       editorInsertNewline();
       break;
@@ -946,8 +990,9 @@ void editorProcessKeypress() {
       break;
     case CTRL_KEY('u'):
     case CTRL_KEY('d'): {
-        int times = E.screenrows / 2;
-        while (times--) editorMoveCursor(c == CTRL_KEY('u') ? ARROW_UP : ARROW_DOWN);
+      int times = E.screenrows / 2;
+      while (times--)
+        editorMoveCursor(c == CTRL_KEY('u') ? ARROW_UP : ARROW_DOWN);
     } break;
     case BACKSPACE:
     case CTRL_KEY('h'):
@@ -974,11 +1019,10 @@ void editorProcessKeypress() {
       editorMoveCursor(c);
       break;
     case CTRL_KEY('l'):
-    case '\x1b':
-      break;
     default:
       editorInsertChar(c);
       break;
+  }
   }
 
   quit_times = KILO_QUIT_TIMES;
