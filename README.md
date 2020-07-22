@@ -1,4 +1,4 @@
-# Kilo Text Editor
+# avi Text Editor
 
 Build with the help of [Snaptoken](https://viewsourcecode.org/snaptoken/kilo/index.html).
 
@@ -18,9 +18,9 @@ Run:
 ## Run
 You can use the kilo text editor to make a new file or to edit existing files.
 ### New File Mode
-``` ./kilo ```
+``` ./avi ```
 ### Edit File Mode
-``` ./kilo filename.ext ```
+``` ./avo filename.ext ```
 
 ## Useful links
 [VT100](https://vt100.net/docs/vt100-ug/chapter3.html) User Guide
