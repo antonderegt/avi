@@ -1072,7 +1072,6 @@ void initEditor() {
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
   E.screenrows -= 2;
-  E.screencols -= COL_OFFSET;
 }
 
 int main(int argc, char *argv[]) {
