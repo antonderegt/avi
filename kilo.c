@@ -531,9 +531,10 @@ void editorInsertNewline() {
     editorInsertRow(E.cy, "", 0);
   } else {
     erow *row = &E.row[E.cy];
-    editorInsertRow(E.cy + 1, &row->chars[E.cx], row->size - E.cx);
+    editorInsertRow(E.cy + 1, &row->chars[E.cx - COL_OFFSET],
+                    row->size - E.cx + COL_OFFSET);
     row = &E.row[E.cy];
-    row->size = E.cx;
+    row->size = E.cx - COL_OFFSET;
     row->chars[row->size] = '\0';
     editorUpdateRow(row);
   }
@@ -1055,7 +1056,7 @@ void editorProcessKeypress() {
 void initEditor() {
   E.cx = COL_OFFSET;
   E.cy = 0;
-  E.rx = 0;
+  E.rx = COL_OFFSET;
   E.rowoff = 0;
   E.coloff = 0;
   E.numrows = 0;
