@@ -719,7 +719,7 @@ void abFree(struct abuf *ab) { free(ab->b); }
 void editorScroll() {
   E.rx = 0;
   if (E.cy < E.numrows) {
-    E.rx = editorRowCxToRx(&E.row[E.cy], E.cx);
+    E.rx = editorRowCxToRx(&E.row[E.cy], E.cx - COL_OFFSET) + COL_OFFSET;
   }
   if (E.cy < E.rowoff) {
     E.rowoff = E.cy;
@@ -970,12 +970,13 @@ void editorProcessKeypress() {
         break;
       case 'G':
         E.cy = E.numrows - 1;
-        E.cx = 0;
+        E.cx = COL_OFFSET;
         break;
       case 'g':
         c = editorReadKey();
         if (c == 'g') {
-          E.cy = E.cx = 0;
+          E.cy = 0;
+          E.cx = COL_OFFSET;
         }
     }
   } else if (editor_mode == INSERT) {
@@ -1005,10 +1006,10 @@ void editorProcessKeypress() {
         break;
 
       case HOME_KEY:
-        E.cx = 0;
+        E.cx = COL_OFFSET;
         break;
       case END_KEY:
-        if (E.cy < E.numrows) E.cx = E.row[E.cy].size;
+        if (E.cy < E.numrows) E.cx = E.row[E.cy].size + COL_OFFSET;
         break;
 
       case CTRL_KEY('f'):
