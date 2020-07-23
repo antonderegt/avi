@@ -827,8 +827,8 @@ void editorDrawStatusBar(struct abuf *ab) {
                E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);
   if (len > E.screencols) len = E.screencols;
   abAppend(ab, status, len);
-  while (len < E.screencols) {
-    if (E.screencols - len == rlen) {
+  while (len < E.screencols + COL_OFFSET) {
+    if (E.screencols + COL_OFFSET - len == rlen) {
       abAppend(ab, rstatus, rlen);
       break;
     } else {
@@ -1072,6 +1072,7 @@ void initEditor() {
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
   E.screenrows -= 2;
+  E.screencols -= COL_OFFSET;
 }
 
 int main(int argc, char *argv[]) {
