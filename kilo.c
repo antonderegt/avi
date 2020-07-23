@@ -415,7 +415,9 @@ int editorRowCxToRx(erow *row, int cx) {
   int rx = 0;
   int j;
   for (j = 0; j < cx; j++) {
-    if (row->chars[j] == '\t') rx += (AVI_TAB_STOP - 1) - (rx % AVI_TAB_STOP);
+    if (row->chars[j] == '\t') {
+      rx += (AVI_TAB_STOP - 1) - (rx % AVI_TAB_STOP);
+    }
     rx++;
   }
   return rx;
@@ -522,7 +524,7 @@ void editorInsertChar(int c) {
   if (E.cy == E.numrows) {
     editorInsertRow(E.numrows, "", 0);
   }
-  editorRowInsertChar(&E.row[E.cy], E.cx, c);
+  editorRowInsertChar(&E.row[E.cy], E.cx - COL_OFFSET, c);
   E.cx++;
 }
 
