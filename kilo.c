@@ -1038,7 +1038,12 @@ void editorProcessKeypress() {
       case 'k':
       case 'h':
       case 'l':
-        editorMoveCursor(c);
+        if (E.command_quantifier == 0) E.command_quantifier++;
+        while (E.command_quantifier) {
+          editorMoveCursor(c);
+          E.command_quantifier--;
+        }
+        editorSetStatusMessage("");
         break;
       case 'w':
         editorMoveCursorWord();
