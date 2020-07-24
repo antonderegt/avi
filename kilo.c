@@ -86,6 +86,7 @@ struct editorConfig {
   int dirty;  // Indicates if file has been modified
   int mode;
   int command_quantifier;
+  char prevCommand;
   char *filename;
   char statusmsg[80];
   time_t statusmsg_time;
@@ -824,10 +825,18 @@ void editorDrawStatusBar(struct abuf *ab) {
   int len = snprintf(status, sizeof(status), "%.20s - %d lines %s %s",
                      E.filename ? E.filename : "[No Name]", E.numrows,
                      E.dirty ? "(modified)" : "",
-                     E.mode == INSERT ? "--INSERT--" : "");
+                     E.mode == INSERT
+                         ? "--INSERT--"
+                         : E.mode == NORMAL ? "--NORMAL--" : "--COMMAND--");
   int rlen =
-      snprintf(rstatus, sizeof(rstatus), "%s | %d/%d",
-               E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);
+      E.command_quantifier == 0
+          ? snprintf(rstatus, sizeof(rstatus), "%c | %s | %d/%d", E.prevCommand,
+                     E.syntax ? E.syntax->filetype : "no ft", E.cy + 1,
+                     E.numrows)
+          : snprintf(rstatus, sizeof(rstatus), "%d%c | %s | %d/%d",
+                     E.command_quantifier, E.prevCommand,
+                     E.syntax ? E.syntax->filetype : "no ft", E.cy + 1,
+                     E.numrows);
   if (len > E.screencols) len = E.screencols;
   abAppend(ab, status, len);
   while (len < E.screencols + COL_OFFSET) {
@@ -983,7 +992,7 @@ void editorMoveCursorWord() {
 }
 
 void editorProcessSecondKey(char prevChar) {
-  editorSetStatusMessage("%c", prevChar);
+  E.prevCommand = prevChar;
   editorRefreshScreen();
 
   char c = editorReadKey();
@@ -992,12 +1001,13 @@ void editorProcessSecondKey(char prevChar) {
     case '\x1b':
       E.command_quantifier = 0;
       editorSetStatusMessage("");
+      E.prevCommand = ' ';
       break;
     case 'd':
       if (prevChar == 'd') {
         editorDelRow(E.cy);
       }
-      editorSetStatusMessage("");
+      E.prevCommand = ' ';
       break;
     case 'g':
       if (prevChar == 'g') {
@@ -1010,7 +1020,7 @@ void editorProcessSecondKey(char prevChar) {
           E.cx = COL_OFFSET;
         }
       }
-      editorSetStatusMessage("");
+      E.prevCommand = ' ';
       break;
 
     default:
@@ -1024,11 +1034,26 @@ void editorProcessKeypress() {
 
   int c = editorReadKey();
 
-  if (E.mode == NORMAL) {
+  if (E.mode == COMMAND) {
+    switch (c) {
+      case '\x1b':
+        E.mode = NORMAL;
+        break;
+      case '\r':
+        editorSetStatusMessage("Pressed enter...");
+
+      default:
+        break;
+    }
+  } else if (E.mode == NORMAL) {
     switch (c) {
       case '\x1b':
         E.command_quantifier = 0;
         editorSetStatusMessage("");
+        break;
+      case ':':
+        E.mode = COMMAND;
+        editorSetStatusMessage("Command mode");
         break;
       case 'i':
         E.mode = INSERT;
@@ -1045,6 +1070,9 @@ void editorProcessKeypress() {
         }
         editorSetStatusMessage("");
         editorRefreshScreen();
+        break;
+      case BACKSPACE:
+        editorMoveCursor(ARROW_LEFT);
         break;
       case 'w':
         editorMoveCursorWord();
@@ -1122,15 +1150,6 @@ void editorProcessKeypress() {
         if (E.cy < E.numrows) E.cx = E.row[E.cy].size + COL_OFFSET;
         break;
 
-      case CTRL_KEY('f'):
-        editorFind();
-        break;
-      case CTRL_KEY('u'):
-      case CTRL_KEY('d'): {
-        int times = E.screenrows / 2;
-        while (times--)
-          editorMoveCursor(c == CTRL_KEY('u') ? ARROW_UP : ARROW_DOWN);
-      } break;
       case BACKSPACE:
       case CTRL_KEY('h'):
       case DEL_KEY:
@@ -1177,6 +1196,7 @@ void initEditor() {
   E.dirty = 0;
   E.mode = NORMAL;
   E.command_quantifier = 0;
+  E.prevCommand = ' ';
   E.filename = NULL;
   E.statusmsg[0] = '\0';
   E.statusmsg_time = 0;
