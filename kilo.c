@@ -84,6 +84,7 @@ struct editorConfig {
   int numrows;     // Number of rows in file
   erow *row;
   int dirty;  // Indicates if file has been modified
+  int mode;
   char *filename;
   char statusmsg[80];
   time_t statusmsg_time;
@@ -819,9 +820,10 @@ void editorDrawRows(struct abuf *ab) {
 void editorDrawStatusBar(struct abuf *ab) {
   abAppend(ab, "\x1b[7m", 4);
   char status[80], rstatus[80];
-  int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
+  int len = snprintf(status, sizeof(status), "%.20s - %d lines %s %s",
                      E.filename ? E.filename : "[No Name]", E.numrows,
-                     E.dirty ? "(modified)" : "");
+                     E.dirty ? "(modified)" : "",
+                     E.mode == INSERT ? "--INSERT--" : "");
   int rlen =
       snprintf(rstatus, sizeof(rstatus), "%s | %d/%d",
                E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);
@@ -950,16 +952,42 @@ void editorMoveCursor(int key) {
   }
 }
 
+void editorProcessSecondKey(char prevChar) {
+  editorSetStatusMessage("%c", prevChar);
+  editorRefreshScreen();
+
+  char c = editorReadKey();
+
+  switch (c) {
+    case 'd':
+      if (prevChar == 'd') {
+        editorDelRow(E.cy);
+      }
+      editorSetStatusMessage("");
+      break;
+    case 'g':
+      if (prevChar == 'g') {
+        E.cy = 0;
+        E.cx = COL_OFFSET;
+      }
+      editorSetStatusMessage("");
+      break;
+
+    default:
+      editorSetStatusMessage("Unknown command...");
+      break;
+  }
+}
+
 void editorProcessKeypress() {
   static int quit_times = AVI_QUIT_TIMES;
-  static int editor_mode = INSERT;
 
   int c = editorReadKey();
 
-  if (editor_mode == NORMAL) {
+  if (E.mode == NORMAL) {
     switch (c) {
       case 'i':
-        editor_mode = INSERT;
+        E.mode = INSERT;
         editorSetStatusMessage("Insert mode");
         break;
       case 'j':
@@ -976,27 +1004,30 @@ void editorProcessKeypress() {
         break;
       case 'a':
         editorMoveCursor(ARROW_RIGHT);
-        editor_mode = INSERT;
+        E.mode = INSERT;
         break;
       case 'A':
         E.cx = E.row->size + COL_OFFSET;
-        editor_mode = INSERT;
+        E.mode = INSERT;
+        break;
+      case 'd':
+        editorProcessSecondKey(c);
         break;
       case 'G':
         E.cy = E.numrows - 1;
         E.cx = COL_OFFSET;
         break;
       case 'g':
-        c = editorReadKey();
-        if (c == 'g') {
-          E.cy = 0;
-          E.cx = COL_OFFSET;
-        }
+        editorProcessSecondKey(c);
+        break;
+      default:
+        editorSetStatusMessage("Unknown command: %c", c);
+        break;
     }
-  } else if (editor_mode == INSERT) {
+  } else if (E.mode == INSERT) {
     switch (c) {
       case '\x1b':
-        editor_mode = NORMAL;
+        E.mode = NORMAL;
         editorSetStatusMessage("Normal mode");
         break;
       case '\r':
@@ -1079,6 +1110,7 @@ void initEditor() {
   E.numrows = 0;
   E.row = NULL;
   E.dirty = 0;
+  E.mode = NORMAL;
   E.filename = NULL;
   E.statusmsg[0] = '\0';
   E.statusmsg_time = 0;
