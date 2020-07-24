@@ -629,6 +629,29 @@ void editorSave() {
   editorSetStatusMessage("Can't save! I/O error: %s", strerror(errno));
 }
 
+/*** command mode ***/
+void commandCallback(char *command, int key) {
+  if (key == '\r') {
+    if (strcmp(command, "wq") == 0) {
+      editorSave();
+      editorSetStatusMessage("bye");
+      write(STDOUT_FILENO, "\x1b[2J", 4);
+      write(STDOUT_FILENO, "\x1b[H", 3);
+      exit(0);
+    } else {
+      editorSetStatusMessage("no match");
+    }
+  }
+}
+
+void editorCommandMode() {
+  char *command = editorPrompt("Command: %s", commandCallback);
+  if (command) {
+    free(command);
+  }
+  E.mode = NORMAL;
+}
+
 /*** find ***/
 void editorFindCallback(char *query, int key) {
   static int last_match = -1;
@@ -1033,19 +1056,7 @@ void editorProcessKeypress() {
   static int quit_times = AVI_QUIT_TIMES;
 
   int c = editorReadKey();
-
-  if (E.mode == COMMAND) {
-    switch (c) {
-      case '\x1b':
-        E.mode = NORMAL;
-        break;
-      case '\r':
-        editorSetStatusMessage("Pressed enter...");
-
-      default:
-        break;
-    }
-  } else if (E.mode == NORMAL) {
+  if (E.mode == NORMAL) {
     switch (c) {
       case '\x1b':
         E.command_quantifier = 0;
@@ -1053,7 +1064,7 @@ void editorProcessKeypress() {
         break;
       case ':':
         E.mode = COMMAND;
-        editorSetStatusMessage("Command mode");
+        editorCommandMode();
         break;
       case 'i':
         E.mode = INSERT;
