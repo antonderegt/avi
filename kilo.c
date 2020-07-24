@@ -19,7 +19,6 @@
 /*** defines ***/
 #define AVI_VERSION "0.0.1"
 #define AVI_TAB_STOP 8
-#define AVI_QUIT_TIMES 3
 #define COL_OFFSET 3
 
 #define CTRL_KEY(k) ((k)&0x1f)
@@ -1067,9 +1066,8 @@ void editorProcessSecondKey(char prevChar) {
 }
 
 void editorProcessKeypress() {
-  static int quit_times = AVI_QUIT_TIMES;
-
   int c = editorReadKey();
+
   if (E.mode == NORMAL) {
     switch (c) {
       case '\x1b':
@@ -1160,22 +1158,6 @@ void editorProcessKeypress() {
       case '\r':
         editorInsertNewline();
         break;
-      case CTRL_KEY('q'):
-        if (E.dirty && quit_times > 0) {
-          editorSetStatusMessage(
-              "WARNING!!! File has unsaved changes. "
-              "Press Ctrl-Q %d more times to quit.",
-              quit_times);
-          quit_times--;
-          return;
-        }
-        write(STDOUT_FILENO, "\x1b[2J", 4);
-        write(STDOUT_FILENO, "\x1b[H", 3);
-        exit(0);
-        break;
-      case CTRL_KEY('s'):
-        editorSave();
-        break;
 
       case HOME_KEY:
         E.cx = COL_OFFSET;
@@ -1214,8 +1196,6 @@ void editorProcessKeypress() {
         break;
     }
   }
-
-  quit_times = AVI_QUIT_TIMES;
 }
 
 /*** init ***/
@@ -1248,7 +1228,8 @@ int main(int argc, char *argv[]) {
     editorOpen(argv[1]);
   }
 
-  editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
+  editorSetStatusMessage(
+      "HELP: i = INSERT MODE | ESC = NORMAL MODE | :q = QUIT | / = find");
 
   while (1) {
     editorRefreshScreen();
