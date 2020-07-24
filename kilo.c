@@ -968,6 +968,14 @@ void editorProcessKeypress() {
       case 'l':
         editorMoveCursor(c);
         break;
+      case 'a':
+        editorMoveCursor(ARROW_RIGHT);
+        editor_mode = INSERT;
+        break;
+      case 'A':
+        E.cx = E.row->size + COL_OFFSET;
+        editor_mode = INSERT;
+        break;
       case 'G':
         E.cy = E.numrows - 1;
         E.cx = COL_OFFSET;
