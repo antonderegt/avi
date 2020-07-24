@@ -952,6 +952,23 @@ void editorMoveCursor(int key) {
   }
 }
 
+void editorMoveCursorWord(int quantifier) {
+  erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+  int position = E.cx - COL_OFFSET;
+  char c;
+  while (quantifier > 0) {
+    c = row->chars[position];
+    if (c < 'A' || c > 'z') {
+      quantifier--;
+    }
+    position++;
+  }
+  if (position > row->size) {
+    position = row->size;
+  }
+  E.cx = position + COL_OFFSET;
+}
+
 void editorProcessSecondKey(char prevChar) {
   editorSetStatusMessage("%c", prevChar);
   editorRefreshScreen();
@@ -995,6 +1012,9 @@ void editorProcessKeypress() {
       case 'h':
       case 'l':
         editorMoveCursor(c);
+        break;
+      case 'w':
+        editorMoveCursorWord(1);
         break;
       case '0':
         E.cx = COL_OFFSET;
