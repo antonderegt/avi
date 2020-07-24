@@ -132,6 +132,12 @@ void die(const char *s) {
   exit(1);
 }
 
+void cleanExit() {
+  write(STDOUT_FILENO, "\x1b[2J", 4);  // Erase screen
+  write(STDOUT_FILENO, "\x1b[H", 3);   // Put cursor at default position of 1,1
+  exit(0);
+}
+
 void disableRawMode() {
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) ==
       -1)  // Discard unhandled input and reset terminal settings to the
@@ -632,12 +638,20 @@ void editorSave() {
 /*** command mode ***/
 void commandCallback(char *command, int key) {
   if (key == '\r') {
-    if (strcmp(command, "wq") == 0) {
+    if (strcmp(command, "wq") == 0 || strcmp(command, "x") == 0) {
       editorSave();
-      editorSetStatusMessage("bye");
-      write(STDOUT_FILENO, "\x1b[2J", 4);
-      write(STDOUT_FILENO, "\x1b[H", 3);
-      exit(0);
+      cleanExit();
+    } else if (strcmp(command, "w") == 0) {
+      editorSave();
+    } else if (strcmp(command, "q") == 0) {
+      if (E.dirty) {
+        editorSetStatusMessage(
+            "Dirty file, try :q! if you want to discard changes.");
+        return;
+      }
+      cleanExit();
+    } else if (strcmp(command, "q!") == 0) {
+      cleanExit();
     } else {
       editorSetStatusMessage("no match");
     }
@@ -1090,6 +1104,11 @@ void editorProcessKeypress() {
         break;
       case '$':
         E.cx = E.row->size + COL_OFFSET;
+        break;
+      case 'o':
+        E.cx = E.row[E.cy].size + COL_OFFSET;
+        editorInsertNewline();
+        E.mode = INSERT;
         break;
       case 'a':
         editorMoveCursor(ARROW_RIGHT);
