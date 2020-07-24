@@ -1110,6 +1110,10 @@ void editorProcessKeypress() {
         editorInsertNewline();
         E.mode = INSERT;
         break;
+      case 'x':
+        editorMoveCursor(ARROW_RIGHT);
+        editorDelChar();
+        break;
       case 'a':
         editorMoveCursor(ARROW_RIGHT);
         E.mode = INSERT;
