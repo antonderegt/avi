@@ -1044,6 +1044,7 @@ void editorProcessKeypress() {
           E.command_quantifier--;
         }
         editorSetStatusMessage("");
+        editorRefreshScreen();
         break;
       case 'w':
         editorMoveCursorWord();
@@ -1056,7 +1057,7 @@ void editorProcessKeypress() {
         E.mode = INSERT;
         break;
       case 'A':
-        E.cx = E.row->size + COL_OFFSET;
+        E.cx = E.row[E.cy].size + COL_OFFSET;
         E.mode = INSERT;
         break;
       case 'd':
@@ -1068,6 +1069,9 @@ void editorProcessKeypress() {
         break;
       case 'g':
         editorProcessSecondKey(c);
+        break;
+      case '/':
+        editorFind();
         break;
       default:
         if (isdigit(c)) {
