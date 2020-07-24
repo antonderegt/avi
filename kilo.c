@@ -85,6 +85,7 @@ struct editorConfig {
   erow *row;
   int dirty;  // Indicates if file has been modified
   int mode;
+  int command_quantifier;
   char *filename;
   char statusmsg[80];
   time_t statusmsg_time;
@@ -952,11 +953,22 @@ void editorMoveCursor(int key) {
   }
 }
 
-void editorMoveCursorWord(int quantifier) {
+void editorMoveCursorWord() {
   erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+  if (row == NULL) return;
   int position = E.cx - COL_OFFSET;
+  int quantifier = E.command_quantifier ? E.command_quantifier : 1;
   char c;
   while (quantifier > 0) {
+    if (position >= row->size) {
+      E.cy++;
+      E.cx = COL_OFFSET;
+      quantifier--;
+      if (quantifier < 1) return;
+      E.command_quantifier = quantifier;
+      editorMoveCursorWord();
+      return;
+    };
     c = row->chars[position];
     if (c < 'A' || c > 'z') {
       quantifier--;
@@ -967,6 +979,7 @@ void editorMoveCursorWord(int quantifier) {
     position = row->size;
   }
   E.cx = position + COL_OFFSET;
+  E.command_quantifier = 0;
 }
 
 void editorProcessSecondKey(char prevChar) {
@@ -976,6 +989,10 @@ void editorProcessSecondKey(char prevChar) {
   char c = editorReadKey();
 
   switch (c) {
+    case '\x1b':
+      E.command_quantifier = 0;
+      editorSetStatusMessage("");
+      break;
     case 'd':
       if (prevChar == 'd') {
         editorDelRow(E.cy);
@@ -1003,6 +1020,10 @@ void editorProcessKeypress() {
 
   if (E.mode == NORMAL) {
     switch (c) {
+      case '\x1b':
+        E.command_quantifier = 0;
+        editorSetStatusMessage("");
+        break;
       case 'i':
         E.mode = INSERT;
         editorSetStatusMessage("Insert mode");
@@ -1014,10 +1035,7 @@ void editorProcessKeypress() {
         editorMoveCursor(c);
         break;
       case 'w':
-        editorMoveCursorWord(1);
-        break;
-      case '0':
-        E.cx = COL_OFFSET;
+        editorMoveCursorWord();
         break;
       case '$':
         E.cx = E.row->size + COL_OFFSET;
@@ -1041,7 +1059,19 @@ void editorProcessKeypress() {
         editorProcessSecondKey(c);
         break;
       default:
-        editorSetStatusMessage("Unknown command: %c", c);
+        if (isdigit(c)) {
+          if (E.command_quantifier > 0) {
+            E.command_quantifier = E.command_quantifier * 10 + (c - '0');
+          } else if (c == '0') {
+            E.cx = COL_OFFSET;
+            break;
+          } else {
+            E.command_quantifier = c - '0';
+          }
+          editorSetStatusMessage("Quanitfier: %d", E.command_quantifier);
+        } else {
+          editorSetStatusMessage("Unknown command: %c", c);
+        }
         break;
     }
   } else if (E.mode == INSERT) {
@@ -1131,6 +1161,7 @@ void initEditor() {
   E.row = NULL;
   E.dirty = 0;
   E.mode = NORMAL;
+  E.command_quantifier = 0;
   E.filename = NULL;
   E.statusmsg[0] = '\0';
   E.statusmsg_time = 0;
