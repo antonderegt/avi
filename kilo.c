@@ -968,6 +968,12 @@ void editorProcessKeypress() {
       case 'l':
         editorMoveCursor(c);
         break;
+      case '0':
+        E.cx = COL_OFFSET;
+        break;
+      case '$':
+        E.cx = E.row->size + COL_OFFSET;
+        break;
       case 'a':
         editorMoveCursor(ARROW_RIGHT);
         editor_mode = INSERT;
