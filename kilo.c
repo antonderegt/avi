@@ -1001,8 +1001,14 @@ void editorProcessSecondKey(char prevChar) {
       break;
     case 'g':
       if (prevChar == 'g') {
-        E.cy = 0;
-        E.cx = COL_OFFSET;
+        if (E.command_quantifier > 0) {
+          E.cy = E.command_quantifier > E.numrows ? E.numrows
+                                                  : E.command_quantifier;
+          E.command_quantifier = 0;
+        } else {
+          E.cy = 0;
+          E.cx = COL_OFFSET;
+        }
       }
       editorSetStatusMessage("");
       break;
