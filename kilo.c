@@ -20,7 +20,7 @@
 #define AVI_VERSION "0.0.1"
 #define AVI_TAB_STOP 8
 #define COL_OFFSET 3
-#define MAX_HISTORY 100
+#define MAX_HISTORY 1000
 
 #define CTRL_KEY(k) ((k)&0x1f)
 
@@ -74,6 +74,11 @@ typedef struct erow {
   int hl_open_comment;
 } erow;
 
+typedef struct history_level {
+  int level;
+  int wraps;
+} history_level;
+
 struct editorConfig {
   int cx, cy;  // Cursor position
   int rx;
@@ -87,8 +92,8 @@ struct editorConfig {
   int mode;
   int command_quantifier;
   char prevCommand;
-  int undo_level;
-  int redo_level;
+  history_level undo_level;
+  history_level redo_level;
   char *filename;
   char statusmsg[80];
   time_t statusmsg_time;
@@ -930,43 +935,70 @@ struct history_action {
   int uy;
   int ux;
   int c;
+  int end;
 };
 
 struct history_action undo_history[MAX_HISTORY];
 struct history_action redo_history[MAX_HISTORY];
 
 void addUndo(char c) {
-  E.undo_level++;
-  undo_history[E.undo_level].c = c;
-  undo_history[E.undo_level].uy = E.cy;
-  undo_history[E.undo_level].ux = E.cx;
+  if (E.undo_level.level >= MAX_HISTORY) {
+    E.undo_level.level = 0;
+    E.undo_level.wraps++;
+  };
+
+  undo_history[E.undo_level.level].c = c;
+  undo_history[E.undo_level.level].uy = E.cy;
+  undo_history[E.undo_level.level].ux = E.cx;
+  undo_history[E.undo_level.level].end = 0;
+  E.undo_level.level++;
 }
 
 void addRedo(char c) {
-  E.redo_level++;
-  redo_history[E.redo_level].c = c;
-  redo_history[E.redo_level].uy = E.cy;
-  redo_history[E.redo_level].ux = E.cx;
+  if (E.redo_level.level >= MAX_HISTORY) {
+    E.redo_level.level = 0;
+    E.redo_level.wraps++;
+  }
+
+  redo_history[E.redo_level.level].c = c;
+  redo_history[E.redo_level.level].uy = E.cy;
+  redo_history[E.redo_level.level].ux = E.cx;
+  redo_history[E.redo_level.level].end = 0;
+  E.redo_level.level++;
 }
 
 void doUndo() {
-  if (E.undo_level <= 0) return;
-  E.cy = undo_history[E.undo_level].uy;
-  E.cx = undo_history[E.undo_level].ux;
+  if (E.undo_level.level <= 0 && E.undo_level.wraps <= 0) return;
+  if (E.undo_level.level <= 0 && E.undo_level.wraps > 0) {
+    E.undo_level.level = MAX_HISTORY;
+    E.undo_level.wraps = 0;
+  }
+  E.undo_level.level--;
+  if (undo_history[E.undo_level.level].end == 1) return;
+  undo_history[E.undo_level.level].end = 1;
+  editorSetStatusMessage("level %d, wraps: %d", E.undo_level.level,
+                         E.undo_level.wraps);
+  E.cy = undo_history[E.undo_level.level].uy;
+  E.cx = undo_history[E.undo_level.level].ux;
   char toRemove = E.row[E.cy].chars[E.cx - COL_OFFSET - 1];
   editorDelChar();
   addRedo(toRemove);
-  E.undo_level--;
 }
 
 void doRedo() {
-  if (E.redo_level <= 0) return;
-  E.cy = redo_history[E.redo_level].uy;
-  E.cx = redo_history[E.redo_level].ux;
-  char toInsert = redo_history[E.redo_level].c;
+  if (E.redo_level.level <= 0 && E.redo_level.wraps <= 0) return;
+  if (E.redo_level.level <= 0 && E.redo_level.wraps > 0) {
+    E.redo_level.level = MAX_HISTORY;
+    E.redo_level.wraps = 0;
+  }
+  E.redo_level.level--;
+  if (redo_history[E.redo_level.level].end == 1) return;
+  redo_history[E.redo_level.level].end = 1;
+  E.cy = redo_history[E.redo_level.level].uy;
+  E.cx = redo_history[E.redo_level.level].ux;
+  char toInsert = redo_history[E.redo_level.level].c;
   editorInsertChar(toInsert);
-  addUndo(c);
-  E.redo_level--;
+  addUndo(toInsert);
 }
 
 /*** input ***/
@@ -1181,7 +1213,7 @@ void editorProcessKeypress() {
         editorFind();
         break;
       case 'u':
-        editorSetStatusMessage("Undo: %c", undo_history[E.undo_level].c);
+        editorSetStatusMessage("Undo: %c", undo_history[E.undo_level.level].c);
         doUndo();
         break;
       case CTRL_KEY('r'):
@@ -1267,8 +1299,10 @@ void initEditor() {
   E.mode = NORMAL;
   E.command_quantifier = 0;
   E.prevCommand = ' ';
-  E.undo_level = 0;
-  E.redo_level = 0;
+  E.undo_level.level = 0;
+  E.undo_level.wraps = 0;
+  E.redo_level.level = 0;
+  E.redo_level.wraps = 0;
   E.filename = NULL;
   E.statusmsg[0] = '\0';
   E.statusmsg_time = 0;
