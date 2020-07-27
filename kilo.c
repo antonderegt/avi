@@ -20,6 +20,7 @@
 #define AVI_VERSION "0.0.1"
 #define AVI_TAB_STOP 8
 #define COL_OFFSET 3
+#define MAX_HISTORY 100
 
 #define CTRL_KEY(k) ((k)&0x1f)
 
@@ -86,6 +87,7 @@ struct editorConfig {
   int mode;
   int command_quantifier;
   char prevCommand;
+  int undo_level;
   char *filename;
   char statusmsg[80];
   time_t statusmsg_time;
@@ -649,7 +651,7 @@ void commandCallback(char *command, int key) {
         return;
       }
       cleanExit();
-    } else if (strcmp(command, "q!") == 0) {
+    } else if (strcmp(command, "q!") == 0 || strcmp(command, "q1") == 0) {
       cleanExit();
     } else {
       editorSetStatusMessage("no match");
@@ -922,6 +924,32 @@ void editorSetStatusMessage(const char *fmt, ...) {
   E.statusmsg_time = time(NULL);
 }
 
+/*** history ***/
+struct undo_history_action {
+  int uy;
+  int ux;
+  int c;
+};
+
+struct undo_history_action undo_history[MAX_HISTORY];
+
+void addUndo(char c) {
+  E.undo_level++;
+  undo_history[E.undo_level].c = c;
+  undo_history[E.undo_level].uy = E.cy;
+  undo_history[E.undo_level].ux = E.cx;
+}
+
+void doUndo() {
+  if (E.undo_level <= 0) return;
+  E.cy = undo_history[E.undo_level].uy;
+  E.cx = undo_history[E.undo_level].ux;
+
+  editorDelChar();
+
+  E.undo_level--;
+}
+
 /*** input ***/
 char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
   size_t bufsize = 128;
@@ -1133,6 +1161,13 @@ void editorProcessKeypress() {
       case '/':
         editorFind();
         break;
+      case 'u':
+        editorSetStatusMessage("Undo: %c", undo_history[E.undo_level].c);
+        doUndo();
+        break;
+      case CTRL_KEY('r'):
+        editorSetStatusMessage("Redo");
+        break;
       default:
         if (isdigit(c)) {
           if (E.command_quantifier > 0) {
@@ -1193,6 +1228,7 @@ void editorProcessKeypress() {
       case CTRL_KEY('l'):
       default:
         editorInsertChar(c);
+        addUndo(c);
         break;
     }
   }
@@ -1211,6 +1247,7 @@ void initEditor() {
   E.mode = NORMAL;
   E.command_quantifier = 0;
   E.prevCommand = ' ';
+  E.undo_level = 0;
   E.filename = NULL;
   E.statusmsg[0] = '\0';
   E.statusmsg_time = 0;
