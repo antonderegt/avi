@@ -88,6 +88,7 @@ struct editorConfig {
   int command_quantifier;
   char prevCommand;
   int undo_level;
+  int redo_level;
   char *filename;
   char statusmsg[80];
   time_t statusmsg_time;
@@ -925,13 +926,14 @@ void editorSetStatusMessage(const char *fmt, ...) {
 }
 
 /*** history ***/
-struct undo_history_action {
+struct history_action {
   int uy;
   int ux;
   int c;
 };
 
-struct undo_history_action undo_history[MAX_HISTORY];
+struct history_action undo_history[MAX_HISTORY];
+struct history_action redo_history[MAX_HISTORY];
 
 void addUndo(char c) {
   E.undo_level++;
@@ -940,14 +942,31 @@ void addUndo(char c) {
   undo_history[E.undo_level].ux = E.cx;
 }
 
+void addRedo(char c) {
+  E.redo_level++;
+  redo_history[E.redo_level].c = c;
+  redo_history[E.redo_level].uy = E.cy;
+  redo_history[E.redo_level].ux = E.cx;
+}
+
 void doUndo() {
   if (E.undo_level <= 0) return;
   E.cy = undo_history[E.undo_level].uy;
   E.cx = undo_history[E.undo_level].ux;
-
+  char toRemove = E.row[E.cy].chars[E.cx - COL_OFFSET - 1];
   editorDelChar();
-
+  addRedo(toRemove);
   E.undo_level--;
+}
+
+void doRedo() {
+  if (E.redo_level <= 0) return;
+  E.cy = redo_history[E.redo_level].uy;
+  E.cx = redo_history[E.redo_level].ux;
+  char toInsert = redo_history[E.redo_level].c;
+  editorInsertChar(toInsert);
+  addUndo(c);
+  E.redo_level--;
 }
 
 /*** input ***/
@@ -1167,6 +1186,7 @@ void editorProcessKeypress() {
         break;
       case CTRL_KEY('r'):
         editorSetStatusMessage("Redo");
+        doRedo();
         break;
       default:
         if (isdigit(c)) {
@@ -1248,6 +1268,7 @@ void initEditor() {
   E.command_quantifier = 0;
   E.prevCommand = ' ';
   E.undo_level = 0;
+  E.redo_level = 0;
   E.filename = NULL;
   E.statusmsg[0] = '\0';
   E.statusmsg_time = 0;
