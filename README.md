@@ -13,7 +13,7 @@ Check if it is installed:
 
 ## Build
 Run:
-``` make ```
+``` make avi```
 
 ## Run
 You can use the kilo text editor to make a new file or to edit existing files.
@@ -21,6 +21,10 @@ You can use the kilo text editor to make a new file or to edit existing files.
 ``` ./avi ```
 ### Edit File Mode
 ``` ./avo filename.ext ```
+
+## Format
+When you have clang-format installed you can format the code with
+``` make format```
 
 ## Useful links
 [VT100](https://vt100.net/docs/vt100-ug/chapter3.html) User Guide
