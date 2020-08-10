@@ -1106,6 +1106,35 @@ void editorMoveCursorWord() {
   E.command_quantifier = 0;
 }
 
+void editorMoveCursorBack() {
+  erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+  if (row == NULL) return;
+  int position = E.cx - COL_OFFSET;
+  int quantifier = E.command_quantifier ? E.command_quantifier : 1;
+  char c;
+  while (quantifier > 0) {
+    position--;
+    if (position < 0 && E.cy > 0) {
+      E.cy--;
+      E.cx = COL_OFFSET + E.row[E.cy].size;
+      quantifier--;
+      if (quantifier < 1) return;
+      E.command_quantifier = quantifier;
+      editorMoveCursorBack();
+      return;
+    };
+    c = row->chars[position - 1];
+    if (c < 'A' || c > 'z') {
+      quantifier--;
+    }
+  }
+  if (position < 0) {
+    position = 0;
+  }
+  E.cx = position + COL_OFFSET;
+  E.command_quantifier = 0;
+}
+
 void editorProcessSecondKey(char prevChar) {
   E.prevCommand = prevChar;
   editorRefreshScreen();
@@ -1178,6 +1207,9 @@ void editorProcessKeypress() {
         break;
       case 'w':
         editorMoveCursorWord();
+        break;
+      case 'b':
+        editorMoveCursorBack();
         break;
       case '$':
         E.cx = E.row->size + COL_OFFSET;
