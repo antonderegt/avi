@@ -20,7 +20,7 @@ You can use the kilo text editor to make a new file or to edit existing files.
 ### New File Mode
 ``` ./avi ```
 ### Edit File Mode
-``` ./avo filename.ext ```
+``` ./avi filename.ext ```
 
 ## Format
 When you have clang-format installed you can format the code with
