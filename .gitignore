@@ -1,3 +1,4 @@
 avi
 .clang-format
-/src/*.o
+/bin
+/obj
