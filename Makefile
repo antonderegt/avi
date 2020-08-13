@@ -27,6 +27,10 @@ $(BIN_DIR) $(OBJ_DIR):
 clean:
 	@$(RM) -rv $(BIN_DIR) $(OBJ_DIR)
 
+format:
+	clang-format -i src/*.c
+	clang-format -i include/*.h
+
 -include $(OBJ:.o=.d)
 
 
