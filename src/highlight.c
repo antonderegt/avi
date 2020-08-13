@@ -1,8 +1,8 @@
 #include "highlight.h"
 
-#include <ctype.h>   //used in highligh
-#include <stdlib.h>  // used in highligh
-#include <string.h>  // used in highlight
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 
 /*** filetypes ***/
 char *C_HL_extensions[] = {".c", ".h", ".cpp", NULL};

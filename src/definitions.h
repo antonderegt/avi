@@ -4,11 +4,12 @@
 #include <termios.h>
 #include <time.h>
 
+#include "history.h"
+
 /*** defines ***/
 #define AVI_VERSION "0.0.1"
 #define AVI_TAB_STOP 8
 #define COL_OFFSET 3
-#define MAX_HISTORY 1000
 
 #define CTRL_KEY(k) ((k)&0x1f)
 
@@ -26,20 +27,6 @@ enum editorKey {
 };
 
 enum editorMode { NORMAL = 0, INSERT, VISUAL, COMMAND };
-
-enum editorHighlight {
-  HL_NORMAL = 0,
-  HL_COMMENT,
-  HL_MLCOMMENT,
-  HL_KEYWORD1,
-  HL_KEYWORD2,
-  HL_STRING,
-  HL_NUMBER,
-  HL_MATCH
-};
-
-#define HL_HIGHLIGHT_NUMBERS (1 << 0)
-#define HL_HIGHLIGHT_STRINGS (1 << 1)
 
 /*** data ***/
 struct editorSyntax {
@@ -61,11 +48,6 @@ typedef struct erow {
   unsigned char *hl;
   int hl_open_comment;
 } erow;
-
-typedef struct history_level {
-  int level;
-  int wraps;
-} history_level;
 
 struct editorConfig {
   int cx, cy;  // Cursor position
