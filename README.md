@@ -13,14 +13,14 @@ Check if it is installed:
 
 ## Build
 Run:
-``` make avi```
+``` make```
 
 ## Run
 You can use the kilo text editor to make a new file or to edit existing files.
 ### New File Mode
-``` ./avi ```
+``` ./bin/avi ```
 ### Edit File Mode
-``` ./avi filename.ext ```
+``` ./bin/avi filename.ext ```
 
 ## Format
 When you have clang-format installed you can format the code with
